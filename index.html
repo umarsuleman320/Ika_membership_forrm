@@ -622,9 +622,9 @@ body {
       <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
     </div>
     <h2>Application Submitted!</h2>
-    <p>JazakAllahu Khairan! Your IKA Membership Application has been received. A beautifully designed copy has been sent to your email.</p>
+    <p>JazakAllahu Khairan! Your IKA Membership Application has been received.<br><br>✅ Your <strong>designed membership PDF</strong> has been downloaded to your device automatically — save it for your records.<br>✅ A <strong>confirmation email</strong> has been sent to your inbox.<br>✅ IKA Admin has been notified.</p>
     <div class="ref" id="successRef">Your submission has been recorded.</div>
-    <p style="margin-top:12px; font-size:0.8rem;">If you do not receive an email within a few minutes, please check your spam folder or contact us at <strong>ikhwatulkiraamassociation@gmail.com</strong></p>
+    <p style="margin-top:12px; font-size:0.8rem;">If you do not receive an email within a few minutes, please check your spam folder or contact us at <strong><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3b5250534c5a4f4e575052495a5a565a48485458525a4f5254557b5c565a525715585456">[email&#160;protected]</a></strong></p>
   </div>
 
 </div><!-- /form-shell -->
@@ -632,16 +632,16 @@ body {
 <!-- LOADING OVERLAY -->
 <div class="loading-overlay" id="loadingOverlay">
   <div class="spinner"></div>
-  <p>Generating your membership certificate & sending emails...</p>
+  <p>Generating your membership PDF &amp; sending emails...</p>
 </div>
 
 <!-- FOOTER -->
 <footer class="site-footer">
-  <div>Ikhwatul Kiraam Association · ikhwatulkiraamassociation@gmail.com · +234 707 578 0916</div>
+  <div>Ikhwatul Kiraam Association · <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="adc4c6c5daccd9d8c1c6c4dfccccc0ccdedec2cec4ccd9c4c2c3edcac0ccc4c183cec2c0">[email&#160;protected]</a> · +234 707 578 0916</div>
   <div class="patrons">Patrons: Mal. Ishaq Yakub &nbsp;·&nbsp; Mal. Bashir Muhammad &nbsp;·&nbsp; Mal. Nuhu Musa Daudawa</div>
 </footer>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ─── EMAILJS INIT ───────────────────────────────────────────────────────────
 // REPLACE THESE WITH YOUR ACTUAL EMAILJS KEYS (see setup guide)
 const EMAILJS_SERVICE_ID  = 'service_2ci8d6x';
@@ -979,12 +979,67 @@ async function submitForm() {
   document.getElementById('submitBtn').disabled = true;
 
   try {
-    // Generate PDF
+    // 1. Generate PDF and AUTO-DOWNLOAD to applicant's device
     const pdfUri = await generatePDF(data);
-    const pdfBase64 = pdfUri.split(',')[1];
-
     const fullName = `${data.firstname} ${data.surname}`;
-    const params = {
+    const fileName = `IKA_Membership_${fullName.replace(/\s+/g,'_')}.pdf`;
+    const link = document.createElement('a');
+    link.href = pdfUri;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // 2. Build a plain-text summary for the emails (well under 50KB)
+    const summary = `
+FULL NAME:        ${fullName}
+DATE OF BIRTH:    ${data.dob}
+GENDER:           ${data.gender}
+MARITAL STATUS:   ${data.marital}
+STATE OF ORIGIN:  ${data.state_origin} / ${data.lga}
+HOMETOWN:         ${data.hometown}
+
+ADDRESS:          ${data.address}
+CITY / STATE:     ${data.city}, ${data.state_res}
+PRIMARY PHONE:    ${data.phone1}
+SECONDARY PHONE:  ${data.phone2}
+EMAIL:            ${data.email}
+CONTACT PREF:     ${data.contact_pref}
+
+EDUCATION:        ${data.education}
+INSTITUTION:      ${data.institution} (${data.grad_year})
+FIELD OF STUDY:   ${data.field_study}
+
+EMPLOYMENT:       ${data.employment}
+OCCUPATION:       ${data.occupation}
+EMPLOYER:         ${data.employer}
+SKILLS:           ${data.skills}
+
+MUSLIM TYPE:      ${data.muslim_type}
+QURAN LEVEL:      ${data.quran_level}
+ISLAMIC LEVEL:    ${data.islamic_level}
+ISLAMIC SKILLS:   ${data.islamic_skills}
+
+HEARD ABOUT IKA:  ${data.heard}
+REFERRED BY:      ${data.referred_by}
+BRANCH:           ${data.branch}
+MEMBERSHIP TYPE:  ${data.mem_type}
+CONTRIBUTE TO:    ${data.contribute}
+
+WHY JOIN IKA:
+${data.why_join}
+
+SKILLS FOR IKA:
+${data.skills_ika}
+
+NEXT OF KIN:      ${data.nok_name} (${data.nok_rel}) — ${data.nok_phone}
+NOK ADDRESS:      ${data.nok_address}
+
+SUBMITTED:        ${data.submitted}
+    `.trim();
+
+    // 3. Send lightweight email to applicant
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_APPLICANT, {
       to_name: fullName,
       to_email: data.email,
       applicant_name: fullName,
@@ -992,20 +1047,22 @@ async function submitForm() {
       mem_type: data.mem_type,
       submitted: data.submitted,
       phone: data.phone1,
-      pdf_content: pdfBase64,
-    };
-
-    // Send to applicant
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_APPLICANT, params);
-
-    // Send to admin
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ADMIN, {
-      ...params,
-      to_email: 'ikhwatulkiraamassociation@gmail.com',
-      to_name: 'IKA Admin',
+      summary: summary,
     });
 
-    // Success
+    // 4. Send lightweight email to admin
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ADMIN, {
+      to_name: 'IKA Admin',
+      to_email: 'ikhwatulkiraamassociation@gmail.com',
+      applicant_name: fullName,
+      branch: data.branch,
+      mem_type: data.mem_type,
+      submitted: data.submitted,
+      phone: data.phone1,
+      summary: summary,
+    });
+
+    // 5. Show success
     document.getElementById('loadingOverlay').classList.remove('show');
     document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
     document.getElementById('progressSteps').style.display = 'none';
@@ -1013,19 +1070,12 @@ async function submitForm() {
       `Name: ${fullName} · Branch: ${data.branch} · Type: ${data.mem_type} · Submitted: ${data.submitted}`;
     document.getElementById('successCard').classList.add('show');
 
-  } catch(err) {
+ } catch(err) {
     document.getElementById('loadingOverlay').classList.remove('show');
     document.getElementById('submitBtn').disabled = false;
-    alert('⚠ Submission error: ' + (err.text || err.message || 'Please try again or contact IKA directly.'));
-    console.error(err);
+    alert('Submission error...');
   }
 }
 </script>
-
-<script>
-// Inject logo as JS variable so PDF can use it
-const LOGO_DATA = document.getElementById('ika-logo-img').src.split(',')[1];
-</script>
-
 </body>
 </html>
